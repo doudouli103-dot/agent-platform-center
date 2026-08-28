@@ -1,0 +1,19 @@
+server:
+  port: 8080
+
+spring:
+  datasource:
+    url: ${AGENT_CENTER_DB_URL:jdbc:h2:file:./data/agent-platform-center;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE}
+    username: ${AGENT_CENTER_DB_USERNAME:sa}
+    password: ${AGENT_CENTER_DB_PASSWORD:}
+    driver-class-name: ${AGENT_CENTER_DB_DRIVER:org.h2.Driver}
+  flyway:
+    enabled: true
+
+agent-platform:
+  runtime:
+    base-url: ${AGENT_CENTER_RUNTIME_URL:http://localhost:8090}
+  gateway:
+    enabled: ${AGENT_CENTER_GATEWAY_ENABLED:false}
+    base-url: ${AGENT_CENTER_GATEWAY_BASE_URL:http://127.0.0.1:8088}
+    api-key: ${AGENT_CENTER_GATEWAY_API_KEY:local-dev-key}

@@ -1,0 +1,21 @@
+.DS_Store
+
+# Java
+target/
+*.class
+data/
+data-backup-*/
+
+# Node
+node_modules/
+dist/
+*.tsbuildinfo
+
+# Python
+.venv/
+__pycache__/
+*.py[cod]
+
+# IDE
+.idea/
+.vscode/

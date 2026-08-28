@@ -1,0 +1,6 @@
+spring:
+  datasource:
+    url: ${AGENT_CENTER_DB_URL:jdbc:postgresql://localhost:5432/agent_platform_center}
+    username: ${AGENT_CENTER_DB_USERNAME:agent_center}
+    password: ${AGENT_CENTER_DB_PASSWORD:agent_center}
+    driver-class-name: org.postgresql.Driver

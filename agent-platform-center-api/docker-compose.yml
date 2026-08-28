@@ -1,0 +1,15 @@
+services:
+  postgres:
+    image: postgres:16
+    container_name: agent-platform-center-postgres
+    environment:
+      POSTGRES_DB: agent_platform_center
+      POSTGRES_USER: agent_center
+      POSTGRES_PASSWORD: agent_center
+    ports:
+      - "5432:5432"
+    volumes:
+      - agent-platform-center-postgres:/var/lib/postgresql/data
+
+volumes:
+  agent-platform-center-postgres:
