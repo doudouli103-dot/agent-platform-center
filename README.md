@@ -200,7 +200,52 @@ curl -N http://localhost:8080/api/runs/run-demo/events
 
 ### MCP for external project APIs
 
-To let an Agent call another project's API, register that API as an MCP resource with a REST schema, then bind the MCP to the Agent.
+To let an Agent call another project's API, register that API as an MCP resource with a REST schema, then bind the MCP to the Agent. In the current design, MCP is the external system/API connector. Tools remain configurable Agent resources and are not used for external API execution yet.
+
+MCP fields:
+
+- `name`: Display name in the console.
+- `version`: Resource version. Use this with the generated id as `<mcp-id>@<version>`.
+- `description`: Short purpose of this MCP.
+- `tags`: Search and grouping labels.
+- `content`: Human-readable notes for what this MCP exposes.
+- `schemaText`: JSON string used by the runtime to call the external API.
+
+`schemaText` format for REST APIs:
+
+```json
+{
+  "type": "rest-api",
+  "baseUrl": "http://order-service.internal:8080",
+  "auth": {
+    "type": "bearer",
+    "env": "ORDER_API_TOKEN"
+  },
+  "endpoints": [
+    {
+      "name": "queryOrder",
+      "method": "POST",
+      "path": "/api/orders/search",
+      "body": {
+        "message": "${message}"
+      }
+    }
+  ]
+}
+```
+
+Supported runtime fields:
+
+- `type`: Must be `rest-api` to enable real HTTP execution.
+- `baseUrl`: External project API host. For the MacBook-to-Windows topology, this can point to a Windows LAN address such as `http://192.168.1.20:18080`.
+- `auth.type`: `bearer`, `api-key`, or omit it for no auth.
+- `auth.env`: Environment variable name read by the API process. Do not put real tokens in `schemaText`.
+- `endpoints[0].name`: Name returned in the `mcp.result` event.
+- `endpoints[0].method`: HTTP method. `GET` and `POST` are the common first choices.
+- `endpoints[0].path`: API path. `${message}` is supported in the path.
+- `endpoints[0].body`: JSON body. `${message}` is supported in nested string values.
+
+Create an MCP resource:
 
 ```bash
 curl -X POST http://localhost:8080/api/mcp-servers \
@@ -215,7 +260,26 @@ curl -X POST http://localhost:8080/api/mcp-servers \
   }'
 ```
 
-Bind the generated MCP id with its version when creating an Agent:
+For a Windows storage/API server on the LAN, use the Windows service address in `baseUrl`:
+
+```json
+{
+  "type": "rest-api",
+  "baseUrl": "http://192.168.1.20:18080",
+  "endpoints": [
+    {
+      "name": "queryRag",
+      "method": "POST",
+      "path": "/rag/query",
+      "body": {
+        "question": "${message}"
+      }
+    }
+  ]
+}
+```
+
+Bind the generated MCP id with its version when creating an Agent. If the MCP creation response returns `id=mcp-order-api-mcp`, bind it as `mcp-order-api-mcp@v1`:
 
 ```json
 {
@@ -229,11 +293,22 @@ Bind the generated MCP id with its version when creating an Agent:
 }
 ```
 
+Run the Agent and read MCP events:
+
+```bash
+RUN_JSON=$(curl -s -X POST http://localhost:8080/api/runs \
+  -H 'Content-Type: application/json' \
+  -d '{"agentId":"agent-java-architect","message":"查询订单 1001"}')
+
+EVENTS_URL=$(printf '%s' "$RUN_JSON" | sed -n 's/.*"eventsUrl":"\([^"]*\)".*/\1/p')
+curl -N "http://localhost:8080$EVENTS_URL"
+```
+
 Runtime behavior:
 
 - `schemaText.type=rest-api` enables real HTTP execution.
 - The first endpoint in `schemaText.endpoints` is called during the Agent run.
-- `${message}` inside the endpoint body is replaced with the current chat message.
+- `${message}` inside the endpoint path or body is replaced with the current chat message.
 - `auth.type=bearer` reads the token from the environment variable named by `auth.env`.
 - `auth.type=api-key` sends the environment value as `X-API-Key`.
 - Chat SSE emits `mcp.started`, `mcp.result`, and `mcp.completed`.
