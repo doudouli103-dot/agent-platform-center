@@ -198,6 +198,47 @@ curl -X POST http://localhost:8080/api/runs \
 curl -N http://localhost:8080/api/runs/run-demo/events
 ```
 
+### MCP for external project APIs
+
+To let an Agent call another project's API, register that API as an MCP resource with a REST schema, then bind the MCP to the Agent.
+
+```bash
+curl -X POST http://localhost:8080/api/mcp-servers \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "name": "Order API MCP",
+    "version": "v1",
+    "description": "Call order project APIs from Agent runs",
+    "tags": ["order", "api", "internal"],
+    "content": "Expose order lookup as an Agent callable MCP.",
+    "schemaText": "{\"type\":\"rest-api\",\"baseUrl\":\"http://order-service.internal:8080\",\"auth\":{\"type\":\"bearer\",\"env\":\"ORDER_API_TOKEN\"},\"endpoints\":[{\"name\":\"queryOrder\",\"method\":\"POST\",\"path\":\"/api/orders/search\",\"body\":{\"message\":\"${message}\"}}]}"
+  }'
+```
+
+Bind the generated MCP id with its version when creating an Agent:
+
+```json
+{
+  "name": "Order Analysis Agent",
+  "description": "Analyze order issues with project API context.",
+  "model": "model-qwen3-coder-next@v1",
+  "promptVersion": "prompt-java-architect@v1",
+  "skills": ["skill-java-review@v1"],
+  "mcpServers": ["mcp-order-api-mcp@v1"],
+  "tools": []
+}
+```
+
+Runtime behavior:
+
+- `schemaText.type=rest-api` enables real HTTP execution.
+- The first endpoint in `schemaText.endpoints` is called during the Agent run.
+- `${message}` inside the endpoint body is replaced with the current chat message.
+- `auth.type=bearer` reads the token from the environment variable named by `auth.env`.
+- `auth.type=api-key` sends the environment value as `X-API-Key`.
+- Chat SSE emits `mcp.started`, `mcp.result`, and `mcp.completed`.
+- Run history stores the MCP events in `run_event`; Chat history shows the final run result.
+
 Direct gateway contract used by Agent Platform Center:
 
 ```bash
@@ -215,6 +256,7 @@ curl -s http://127.0.0.1:8088/v1/chat/completions \
 - Agent bindings for Prompt, Skill, MCP, and Tools
 - REST API for configuration and run creation
 - SSE for token streaming and trace events
+- REST MCP execution for calling configured external project APIs
 - Optional `tenx-ai-gateway` integration for model calls
 - React console with Agent list and Playground
 - Python runtime starter for future real Agent execution

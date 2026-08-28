@@ -32,7 +32,7 @@ export default function PlaygroundPage() {
       setEvents((current) => [...current, { name, data, time: new Date().toLocaleTimeString() }]);
     };
 
-    ['run.started', 'skill.selected', 'mcp.started', 'mcp.completed', 'gateway.selected', 'trace.completed', 'run.completed'].forEach((name) => {
+    ['run.started', 'skill.selected', 'mcp.started', 'mcp.result', 'mcp.completed', 'gateway.selected', 'trace.completed', 'run.completed'].forEach((name) => {
       source.addEventListener(name, (event) => {
         addEvent(name, (event as MessageEvent).data);
         if (name === 'run.completed') {

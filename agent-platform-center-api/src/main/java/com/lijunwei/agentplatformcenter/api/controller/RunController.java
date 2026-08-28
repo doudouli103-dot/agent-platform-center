@@ -3,10 +3,12 @@ package com.lijunwei.agentplatformcenter.api.controller;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.lijunwei.agentplatformcenter.api.config.GatewayClientProperties;
 import com.lijunwei.agentplatformcenter.api.model.AgentDefinition;
+import com.lijunwei.agentplatformcenter.api.model.McpCallResult;
 import com.lijunwei.agentplatformcenter.api.model.RunRecord;
 import com.lijunwei.agentplatformcenter.api.model.RunRequest;
 import com.lijunwei.agentplatformcenter.api.model.RunResponse;
 import com.lijunwei.agentplatformcenter.api.service.AgentCatalogService;
+import com.lijunwei.agentplatformcenter.api.service.RestApiMcpClient;
 import com.lijunwei.agentplatformcenter.api.service.RunHistoryService;
 import com.lijunwei.agentplatformcenter.api.service.TenxAiGatewayClient;
 import org.springframework.http.MediaType;
@@ -32,16 +34,18 @@ import java.util.UUID;
 public class RunController {
     private final AgentCatalogService catalogService;
     private final TenxAiGatewayClient gatewayClient;
+    private final RestApiMcpClient mcpClient;
     private final GatewayClientProperties gatewayProperties;
     private final RunHistoryService historyService;
     private final ObjectMapper objectMapper;
     private final Map<String, RunRequest> runRequests = new ConcurrentHashMap<>();
 
     public RunController(AgentCatalogService catalogService, TenxAiGatewayClient gatewayClient,
-                         GatewayClientProperties gatewayProperties, RunHistoryService historyService,
-                         ObjectMapper objectMapper) {
+                         RestApiMcpClient mcpClient, GatewayClientProperties gatewayProperties,
+                         RunHistoryService historyService, ObjectMapper objectMapper) {
         this.catalogService = catalogService;
         this.gatewayClient = gatewayClient;
+        this.mcpClient = mcpClient;
         this.gatewayProperties = gatewayProperties;
         this.historyService = historyService;
         this.objectMapper = objectMapper;
@@ -84,7 +88,12 @@ public class RunController {
 
                     send(runId, emitter, "run.started", data("runId", runId));
                     send(runId, emitter, "skill.selected", data("skill", firstOrDefault(agent.map(AgentDefinition::getSkills).orElse(null), "skill-java-review@v1")));
-                    send(runId, emitter, "mcp.started", data("server", firstOrDefault(agent.map(AgentDefinition::getMcpServers).orElse(null), "mcp-filesystem@v1")));
+                    String mcpBinding = firstOrDefault(agent.map(AgentDefinition::getMcpServers).orElse(null), "mcp-filesystem@v1");
+                    send(runId, emitter, "mcp.started", data("server", mcpBinding));
+                    Optional<McpCallResult> mcpResult = executeMcp(mcpBinding, request == null ? "" : request.getMessage());
+                    if (mcpResult.isPresent()) {
+                        send(runId, emitter, "mcp.result", mcpResult.get());
+                    }
                     send(runId, emitter, "mcp.completed", data("durationMs", 128));
                     Map<String, Object> gatewayData = gatewaySelection(model);
                     historyService.updateGatewayData(runId, objectMapper.writeValueAsString(gatewayData));
@@ -127,6 +136,11 @@ public class RunController {
         data.put("toolCalls", 1);
         data.put("durationMs", 860);
         return data;
+    }
+
+    private Optional<McpCallResult> executeMcp(String binding, String message) {
+        return catalogService.findResourceByBinding("mcp", binding)
+                .map(mcp -> mcpClient.execute(mcp, message));
     }
 
     private Object data(String key, Object value) {

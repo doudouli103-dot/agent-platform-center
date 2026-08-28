@@ -81,7 +81,7 @@ export default function ChatPage({ initialAgentId }: ChatPageProps) {
       setEvents((current) => [...current, { name, data, time: new Date().toLocaleTimeString() }]);
     };
 
-    ['run.started', 'skill.selected', 'mcp.started', 'mcp.completed', 'gateway.selected', 'trace.completed', 'run.completed'].forEach((name) => {
+    ['run.started', 'skill.selected', 'mcp.started', 'mcp.result', 'mcp.completed', 'gateway.selected', 'trace.completed', 'run.completed'].forEach((name) => {
       source.addEventListener(name, (event) => {
         const data = (event as MessageEvent).data;
         addEvent(name, data);

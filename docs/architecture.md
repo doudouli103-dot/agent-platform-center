@@ -23,6 +23,7 @@ The API owns platform configuration persistence. Flyway migrations create the V1
 
 - `agent_definition`: Agent identity, model, prompt version, skill bindings, MCP bindings, tool bindings, and status.
 - `platform_resource`: Model, Prompt, Skill, MCP, and Tool resources, including editable `content` and `schema_text` configuration.
+- `run_record` and `run_event`: Agent run history, streamed event payloads, model output, MCP result events, gateway selection data, and trace completion data.
 
 The default profile uses a local H2 file database so the project starts without external services. The `mysql` profile connects the MacBook API directly to the Windows MySQL service and uses MySQL-specific Flyway migrations. The `postgres` profile is kept as an alternative. V1 stores binding lists as comma-separated values to keep the first schema small; this should become normalized association tables before advanced filtering, permission checks, or version graph queries.
 
@@ -54,10 +55,15 @@ SSE stream
   |- run.started
   |- skill.selected
   |- mcp.started
+  |- mcp.result
+  |- mcp.completed
+  |- gateway.selected
   |- model.token
   |- trace.completed
   |- run.completed
 ```
+
+REST MCP resources are executed by the API when `schema_text` declares `type=rest-api`. The current runtime calls the first configured endpoint, replaces `${message}` in the endpoint path or body with the chat message, and emits the downstream response as `mcp.result`.
 
 ## Why REST + SSE First
 

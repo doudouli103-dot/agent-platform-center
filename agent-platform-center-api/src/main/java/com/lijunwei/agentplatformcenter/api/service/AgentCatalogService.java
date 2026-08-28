@@ -69,6 +69,34 @@ public class AgentCatalogService {
         return Optional.of(agents.get(0));
     }
 
+    public Optional<PlatformResource> findResourceByBinding(String type, String binding) {
+        String id = binding;
+        String version = "";
+        int versionSeparator = binding.indexOf('@');
+        if (versionSeparator >= 0) {
+            id = binding.substring(0, versionSeparator);
+            version = binding.substring(versionSeparator + 1);
+        }
+        List<PlatformResource> resources = version.isEmpty()
+                ? jdbcTemplate.query(
+                "select id, name, type, version, description, tags, content, schema_text, status from platform_resource where type = ? and id = ?",
+                resourceMapper(),
+                type,
+                id
+        )
+                : jdbcTemplate.query(
+                "select id, name, type, version, description, tags, content, schema_text, status from platform_resource where type = ? and id = ? and version = ?",
+                resourceMapper(),
+                type,
+                id,
+                version
+        );
+        if (resources.isEmpty()) {
+            return Optional.empty();
+        }
+        return Optional.of(resources.get(0));
+    }
+
     private List<String> copyOrEmpty(List<String> values) {
         if (values == null) {
             return Collections.emptyList();
