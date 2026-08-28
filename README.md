@@ -44,7 +44,32 @@ The frontend does not call the runtime directly. Spring Boot stays as the unifie
 
 ## Start
 
-### 1. Start API
+Deploy and start services in dependency order:
+
+```text
+Model service / tenx-ai-gateway -> Spring Boot API -> Python Runtime -> React Web
+```
+
+### 1. Start tenx-ai-gateway
+
+Start the model gateway first when Agent runs should use real model capability.
+
+```bash
+cd /Users/lijunwei/PycharmProjects/tenx-ai-gateway
+TENX_AI_GATEWAY_API_KEYS=local-dev-key \
+TENX_LOCAL_OPENAI_BASE_URL=http://127.0.0.1:4000 \
+mvn spring-boot:run
+```
+
+Health check:
+
+```bash
+curl http://127.0.0.1:8088/healthz
+```
+
+If the gateway is not started, Agent Platform Center can still run with local mock output for configuration and UI development.
+
+### 2. Start API
 
 ```bash
 cd agent-platform-center-api
@@ -71,7 +96,7 @@ mvn spring-boot:run
 
 When gateway integration is disabled, the Playground still returns local mock output so configuration screens and SSE can be developed without a running model service.
 
-### 2. Start Runtime
+### 3. Start Runtime
 
 ```bash
 cd agent-platform-runtime
@@ -81,7 +106,9 @@ python -m pip install -r requirements.txt
 uvicorn app.main:app --reload --port 8090
 ```
 
-### 3. Start Web
+The runtime is the extension point for future real Skill, MCP, Tool, and RAG execution. The current API does not require it for basic Agent configuration and Chat UI smoke testing.
+
+### 4. Start Web
 
 ```bash
 cd agent-platform-center-web
