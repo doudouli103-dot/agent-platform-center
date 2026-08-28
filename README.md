@@ -41,16 +41,52 @@ The frontend does not call the runtime directly. Spring Boot stays as the unifie
 | API | 8080 | http://localhost:8080/api/health |
 | Runtime | 8090 | http://localhost:8090/health |
 | tenx-ai-gateway | 8088 | http://127.0.0.1:8088/healthz |
+| Windows MySQL | 3306 | private LAN only |
+| Windows Redis | 6379 | private LAN only |
+| Windows Elasticsearch | 9200 | private LAN only |
+| Windows Chroma | 8000 | private LAN only |
+| Windows RAG API | 8091 | private LAN only |
+
+## Deployment Topology
+
+For this deployment, MacBook is the external-facing host and the Windows notebook is the internal storage server.
+
+```text
+External users
+  |
+  v
+MacBook: Web / API / Runtime / optional tenx-ai-gateway
+  |
+  v
+Windows notebook: MySQL / Redis / Elasticsearch / Chroma / RAG API
+```
+
+External users should not connect to Windows directly. The MacBook API connects directly to Windows MySQL, and future Runtime/RAG features connect directly to Windows Redis, Elasticsearch, Chroma, and RAG API.
 
 ## Start
 
 Deploy and start services in dependency order:
 
 ```text
-Model service / tenx-ai-gateway -> Spring Boot API -> Python Runtime -> React Web
+Windows storage services -> MacBook tenx-ai-gateway -> MacBook API -> MacBook Runtime -> MacBook Web
 ```
 
-### 1. Start tenx-ai-gateway
+### 1. Start Windows Storage Services
+
+Start MySQL, Redis, Elasticsearch, Chroma, and the RAG API on the Windows notebook first.
+
+Create the MySQL database:
+
+```sql
+create database agent_platform_center character set utf8mb4 collate utf8mb4_unicode_ci;
+create user 'agent_center'@'%' identified by 'change-me';
+grant all privileges on agent_platform_center.* to 'agent_center'@'%';
+flush privileges;
+```
+
+Allow service ports only from the MacBook LAN IP in Windows firewall.
+
+### 2. Start tenx-ai-gateway On MacBook
 
 Start the model gateway first when Agent runs should use real model capability.
 
@@ -69,7 +105,7 @@ curl http://127.0.0.1:8088/healthz
 
 If the gateway is not started, Agent Platform Center can still run with local mock output for configuration and UI development.
 
-### 2. Start API
+### 3. Start API On MacBook
 
 ```bash
 cd agent-platform-center-api
@@ -84,6 +120,25 @@ docker compose up -d
 SPRING_PROFILES_ACTIVE=postgres mvn spring-boot:run
 ```
 
+For the MacBook deployment that connects directly to the Windows storage server, use the `mysql` profile:
+
+```bash
+cd agent-platform-center-api
+export WINDOWS_STORAGE_HOST=192.168.1.100
+export AGENT_CENTER_DB_USERNAME=agent_center
+export AGENT_CENTER_DB_PASSWORD=change-me
+SPRING_PROFILES_ACTIVE=mysql mvn spring-boot:run
+```
+
+Optional Windows data service endpoints:
+
+```bash
+export AGENT_CENTER_REDIS_URL=redis://${WINDOWS_STORAGE_HOST}:6379
+export AGENT_CENTER_ES_URL=http://${WINDOWS_STORAGE_HOST}:9200
+export AGENT_CENTER_CHROMA_URL=http://${WINDOWS_STORAGE_HOST}:8000
+export AGENT_CENTER_RAG_API_URL=http://${WINDOWS_STORAGE_HOST}:8091
+```
+
 To use real model capability through `tenx-ai-gateway`, start the gateway first, then enable the integration:
 
 ```bash
@@ -96,7 +151,7 @@ mvn spring-boot:run
 
 When gateway integration is disabled, the Playground still returns local mock output so configuration screens and SSE can be developed without a running model service.
 
-### 3. Start Runtime
+### 4. Start Runtime On MacBook
 
 ```bash
 cd agent-platform-runtime
@@ -108,7 +163,7 @@ uvicorn app.main:app --reload --port 8090
 
 The runtime is the extension point for future real Skill, MCP, Tool, and RAG execution. The current API does not require it for basic Agent configuration and Chat UI smoke testing.
 
-### 4. Start Web
+### 5. Start Web On MacBook
 
 ```bash
 cd agent-platform-center-web

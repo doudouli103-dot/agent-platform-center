@@ -1,0 +1,17 @@
+spring:
+  datasource:
+    url: ${AGENT_CENTER_DB_URL:jdbc:mysql://${WINDOWS_STORAGE_HOST:192.168.1.100}:3306/agent_platform_center?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true}
+    username: ${AGENT_CENTER_DB_USERNAME:agent_center}
+    password: ${AGENT_CENTER_DB_PASSWORD:agent_center}
+    driver-class-name: com.mysql.cj.jdbc.Driver
+  flyway:
+    locations: classpath:db/mysql-migration
+
+agent-platform:
+  storage:
+    host: ${WINDOWS_STORAGE_HOST:192.168.1.100}
+    mysql-url: ${AGENT_CENTER_DB_URL:jdbc:mysql://${WINDOWS_STORAGE_HOST:192.168.1.100}:3306/agent_platform_center}
+    redis-url: ${AGENT_CENTER_REDIS_URL:redis://${WINDOWS_STORAGE_HOST:192.168.1.100}:6379}
+    elasticsearch-url: ${AGENT_CENTER_ES_URL:http://${WINDOWS_STORAGE_HOST:192.168.1.100}:9200}
+    chroma-url: ${AGENT_CENTER_CHROMA_URL:http://${WINDOWS_STORAGE_HOST:192.168.1.100}:8000}
+    rag-api-url: ${AGENT_CENTER_RAG_API_URL:http://${WINDOWS_STORAGE_HOST:192.168.1.100}:8091}

@@ -8,7 +8,8 @@ Agent Platform Center uses a separated frontend/backend architecture:
 - Backend: Spring Boot 2.7 on Java 8
 - Runtime: Python FastAPI
 - Communication: REST for commands and CRUD, SSE for stream output and trace events
-- Persistence: Flyway-managed relational schema, H2 for immediate local startup, PostgreSQL profile for real deployment
+- Persistence: Flyway-managed relational schema, H2 for local startup, MySQL for MacBook-to-Windows deployment, PostgreSQL retained as an alternative
+- Deployment: MacBook is the external-facing host; Windows notebook is the internal storage and data service server
 
 ## Runtime Boundary
 
@@ -23,7 +24,15 @@ The API owns platform configuration persistence. Flyway migrations create the V1
 - `agent_definition`: Agent identity, model, prompt version, skill bindings, MCP bindings, tool bindings, and status.
 - `platform_resource`: Model, Prompt, Skill, MCP, and Tool resources, including editable `content` and `schema_text` configuration.
 
-The default profile uses a local H2 file database so the project starts without external services. The `postgres` profile switches the same schema to PostgreSQL. V1 stores binding lists as comma-separated values to keep the first schema small; this should become normalized association tables before advanced filtering, permission checks, or version graph queries.
+The default profile uses a local H2 file database so the project starts without external services. The `mysql` profile connects the MacBook API directly to the Windows MySQL service and uses MySQL-specific Flyway migrations. The `postgres` profile is kept as an alternative. V1 stores binding lists as comma-separated values to keep the first schema small; this should become normalized association tables before advanced filtering, permission checks, or version graph queries.
+
+## Deployment Boundary
+
+External users access only the MacBook host. The Windows notebook stays inside the private LAN and provides MySQL, Redis, Elasticsearch, Chroma, and RAG API to the MacBook.
+
+```text
+External users -> MacBook Web/API/Runtime/Gateway -> Windows MySQL/Redis/Elasticsearch/Chroma/RAG API
+```
 
 ## V1 Run Flow
 
