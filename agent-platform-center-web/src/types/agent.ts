@@ -35,6 +35,20 @@ export interface RunResponse {
   eventsUrl: string;
 }
 
+export interface RunRecord {
+  id: string;
+  agentId: string;
+  agentName: string;
+  model: string;
+  userMessage: string;
+  assistantOutput: string;
+  status: string;
+  gatewayData: string;
+  traceData: string;
+  createdAt: string;
+  completedAt: string;
+}
+
 export interface PlatformResource {
   id: string;
   name: string;

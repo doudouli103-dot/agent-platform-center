@@ -3,9 +3,11 @@ package com.lijunwei.agentplatformcenter.api.controller;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.lijunwei.agentplatformcenter.api.config.GatewayClientProperties;
 import com.lijunwei.agentplatformcenter.api.model.AgentDefinition;
+import com.lijunwei.agentplatformcenter.api.model.RunRecord;
 import com.lijunwei.agentplatformcenter.api.model.RunRequest;
 import com.lijunwei.agentplatformcenter.api.model.RunResponse;
 import com.lijunwei.agentplatformcenter.api.service.AgentCatalogService;
+import com.lijunwei.agentplatformcenter.api.service.RunHistoryService;
 import com.lijunwei.agentplatformcenter.api.service.TenxAiGatewayClient;
 import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -18,6 +20,7 @@ import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import javax.validation.Valid;
 import java.io.IOException;
+import java.util.List;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Optional;
@@ -30,22 +33,32 @@ public class RunController {
     private final AgentCatalogService catalogService;
     private final TenxAiGatewayClient gatewayClient;
     private final GatewayClientProperties gatewayProperties;
+    private final RunHistoryService historyService;
     private final ObjectMapper objectMapper;
     private final Map<String, RunRequest> runRequests = new ConcurrentHashMap<>();
 
     public RunController(AgentCatalogService catalogService, TenxAiGatewayClient gatewayClient,
-                         GatewayClientProperties gatewayProperties, ObjectMapper objectMapper) {
+                         GatewayClientProperties gatewayProperties, RunHistoryService historyService,
+                         ObjectMapper objectMapper) {
         this.catalogService = catalogService;
         this.gatewayClient = gatewayClient;
         this.gatewayProperties = gatewayProperties;
+        this.historyService = historyService;
         this.objectMapper = objectMapper;
     }
 
     @PostMapping
     public RunResponse createRun(@Valid @RequestBody RunRequest request) {
         String runId = "run-" + UUID.randomUUID().toString().substring(0, 8);
+        Optional<AgentDefinition> agent = catalogService.findAgent(request.getAgentId());
+        historyService.createRun(runId, request, agent);
         runRequests.put(runId, request);
         return new RunResponse(runId, "created", "/api/runs/" + runId + "/events");
+    }
+
+    @GetMapping
+    public List<RunRecord> listRuns() {
+        return historyService.listRuns();
     }
 
     @GetMapping(path = "/{runId}/events", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
@@ -67,18 +80,26 @@ public class RunController {
                     RunRequest request = runRequests.get(runId);
                     Optional<AgentDefinition> agent = request == null ? Optional.empty() : catalogService.findAgent(request.getAgentId());
                     String model = agent.map(AgentDefinition::getModel).orElse("qwen3-coder-next");
+                    historyService.markRunning(runId);
 
-                    send(emitter, "run.started", data("runId", runId));
-                    send(emitter, "skill.selected", data("skill", firstOrDefault(agent.map(AgentDefinition::getSkills).orElse(null), "skill-java-review@v1")));
-                    send(emitter, "mcp.started", data("server", firstOrDefault(agent.map(AgentDefinition::getMcpServers).orElse(null), "mcp-filesystem@v1")));
-                    send(emitter, "mcp.completed", data("durationMs", 128));
-                    send(emitter, "gateway.selected", gatewaySelection(model));
-                    send(emitter, "model.token", data("text", modelReply(model, request == null ? "" : request.getMessage())));
-                    send(emitter, "trace.completed", traceCompleted());
-                    send(emitter, "run.completed", data("status", "completed"));
+                    send(runId, emitter, "run.started", data("runId", runId));
+                    send(runId, emitter, "skill.selected", data("skill", firstOrDefault(agent.map(AgentDefinition::getSkills).orElse(null), "skill-java-review@v1")));
+                    send(runId, emitter, "mcp.started", data("server", firstOrDefault(agent.map(AgentDefinition::getMcpServers).orElse(null), "mcp-filesystem@v1")));
+                    send(runId, emitter, "mcp.completed", data("durationMs", 128));
+                    Map<String, Object> gatewayData = gatewaySelection(model);
+                    historyService.updateGatewayData(runId, objectMapper.writeValueAsString(gatewayData));
+                    send(runId, emitter, "gateway.selected", gatewayData);
+                    String reply = modelReply(model, request == null ? "" : request.getMessage());
+                    historyService.appendAssistantOutput(runId, reply);
+                    send(runId, emitter, "model.token", data("text", reply));
+                    Map<String, Object> traceData = traceCompleted();
+                    send(runId, emitter, "trace.completed", traceData);
+                    historyService.markCompleted(runId, objectMapper.writeValueAsString(traceData));
+                    send(runId, emitter, "run.completed", data("status", "completed"));
                     runRequests.remove(runId);
                     emitter.complete();
                 } catch (Exception ex) {
+                    historyService.markFailed(runId, ex.getMessage());
                     emitter.completeWithError(ex);
                 }
             }
@@ -121,12 +142,13 @@ public class RunController {
         return values.get(0);
     }
 
-    private void send(SseEmitter emitter, String eventName, String data) throws IOException, InterruptedException {
+    private void send(String runId, SseEmitter emitter, String eventName, String data) throws IOException, InterruptedException {
+        historyService.recordEvent(runId, eventName, data);
         emitter.send(SseEmitter.event().name(eventName).data(data));
         Thread.sleep(350L);
     }
 
-    private void send(SseEmitter emitter, String eventName, Object data) throws IOException, InterruptedException {
-        send(emitter, eventName, objectMapper.writeValueAsString(data));
+    private void send(String runId, SseEmitter emitter, String eventName, Object data) throws IOException, InterruptedException {
+        send(runId, emitter, eventName, objectMapper.writeValueAsString(data));
     }
 }

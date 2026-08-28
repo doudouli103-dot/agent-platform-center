@@ -72,6 +72,28 @@ class AgentPlatformCenterApiApplicationTests {
     }
 
     @Test
+    void createRunPersistsHistoryRecord() throws Exception {
+        mockMvc.perform(post("/api/runs")
+                        .contentType("application/json")
+                        .content("{\"agentId\":\"agent-java-architect\",\"message\":\"history please\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.runId").exists());
+
+        Integer count = jdbcTemplate.queryForObject(
+                "select count(*) from run_record where agent_id = ? and user_message = ?",
+                Integer.class,
+                "agent-java-architect",
+                "history please"
+        );
+        org.junit.jupiter.api.Assertions.assertEquals(1, count);
+
+        mockMvc.perform(get("/api/runs"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[*].agentId", hasItem("agent-java-architect")))
+                .andExpect(jsonPath("$[*].userMessage", hasItem("history please")));
+    }
+
+    @Test
     void listPromptsReturnsSeedPrompts() throws Exception {
         mockMvc.perform(get("/api/prompts"))
                 .andExpect(status().isOk())

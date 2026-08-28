@@ -1,5 +1,5 @@
 import axios from 'axios';
-import type { AgentDefinition, CreateAgentRequest, CreatePlatformResourceRequest, PlatformResource, RunResponse } from '../types/agent';
+import type { AgentDefinition, CreateAgentRequest, CreatePlatformResourceRequest, PlatformResource, RunRecord, RunResponse } from '../types/agent';
 
 export const api = axios.create({
   baseURL: '/api',
@@ -68,5 +68,10 @@ export async function createModel(payload: CreatePlatformResourceRequest): Promi
 
 export async function createRun(agentId: string, message: string): Promise<RunResponse> {
   const response = await api.post<RunResponse>('/runs', { agentId, message });
+  return response.data;
+}
+
+export async function fetchRuns(): Promise<RunRecord[]> {
+  const response = await api.get<RunRecord[]>('/runs');
   return response.data;
 }

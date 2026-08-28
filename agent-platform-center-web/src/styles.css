@@ -116,6 +116,7 @@ body {
 .placeholder-panel,
 .chat-main-panel,
 .chat-result-panel,
+.chat-history-panel,
 .chat-trace-panel {
   background: #ffffff;
   border: 1px solid #dce4df;
@@ -173,6 +174,73 @@ body {
 
 .chat-result-panel .ant-descriptions-item-content {
   word-break: break-word;
+}
+
+.run-history-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.run-history-item {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px;
+  border: 1px solid #dce4df;
+  border-radius: 6px;
+  background: #fbfcfb;
+}
+
+.run-history-title,
+.run-history-meta {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  align-items: center;
+}
+
+.run-history-title strong {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.run-history-meta {
+  color: #66736e;
+  font-size: 12px;
+}
+
+.run-history-meta span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.run-history-item p,
+.run-history-item code {
+  display: -webkit-box;
+  margin: 0;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+}
+
+.run-history-item p {
+  -webkit-line-clamp: 2;
+  line-height: 1.5;
+}
+
+.run-history-item code {
+  padding: 6px 8px;
+  border-radius: 6px;
+  background: #f4f7f5;
+  color: #31413b;
+  font-size: 12px;
+  line-height: 1.5;
+  -webkit-line-clamp: 3;
+  white-space: pre-wrap;
 }
 
 .chat-thread {

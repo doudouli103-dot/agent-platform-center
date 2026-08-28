@@ -2,8 +2,8 @@ import { SendOutlined } from '@ant-design/icons';
 import { useQuery } from '@tanstack/react-query';
 import { Button, Descriptions, Input, Select, Space, Tag, Timeline, Typography } from 'antd';
 import { useEffect, useMemo, useState } from 'react';
-import { createRun, fetchAgents, fetchMcpServers, fetchPrompts, fetchSkills, fetchTools } from '../api/client';
-import type { AgentDefinition, PlatformResource, TraceEvent } from '../types/agent';
+import { createRun, fetchAgents, fetchMcpServers, fetchPrompts, fetchRuns, fetchSkills, fetchTools } from '../api/client';
+import type { AgentDefinition, PlatformResource, RunRecord, TraceEvent } from '../types/agent';
 
 const { TextArea } = Input;
 
@@ -32,6 +32,7 @@ export default function ChatPage({ initialAgentId }: ChatPageProps) {
   const { data: skills = [] } = useQuery({ queryKey: ['skills'], queryFn: fetchSkills });
   const { data: mcpServers = [] } = useQuery({ queryKey: ['mcpServers'], queryFn: fetchMcpServers });
   const { data: tools = [] } = useQuery({ queryKey: ['tools'], queryFn: fetchTools });
+  const { data: runHistory = [], refetch: refetchRunHistory } = useQuery({ queryKey: ['runs'], queryFn: fetchRuns });
   const [agentId, setAgentId] = useState(initialAgentId || 'agent-java-architect');
   const [input, setInput] = useState('帮我分析当前需求，并给出下一步实现建议。');
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -87,6 +88,7 @@ export default function ChatPage({ initialAgentId }: ChatPageProps) {
         updateRunResult(name, data);
         if (name === 'run.completed') {
           setRunning(false);
+          void refetchRunHistory();
           source.close();
         }
       });
@@ -104,6 +106,7 @@ export default function ChatPage({ initialAgentId }: ChatPageProps) {
       addEvent('stream.error', 'SSE connection closed unexpectedly');
       setRunResult((current) => ({ ...current, status: 'error', completedAt: new Date().toLocaleTimeString() }));
       setRunning(false);
+      void refetchRunHistory();
       source.close();
     };
   }
@@ -187,6 +190,8 @@ export default function ChatPage({ initialAgentId }: ChatPageProps) {
           runResult={runResult}
         />
 
+        <RunHistoryPanel runs={runHistory} />
+
         <div className="chat-trace-panel">
           <Typography.Title level={4}>Trace</Typography.Title>
           <Timeline
@@ -203,6 +208,37 @@ export default function ChatPage({ initialAgentId }: ChatPageProps) {
         </div>
       </div>
     </section>
+  );
+}
+
+interface RunHistoryPanelProps {
+  runs: RunRecord[];
+}
+
+function RunHistoryPanel({ runs }: RunHistoryPanelProps) {
+  return (
+    <div className="chat-history-panel">
+      <Typography.Title level={4}>Run History</Typography.Title>
+      <div className="run-history-list">
+        {runs.length === 0 && (
+          <Typography.Text type="secondary">No run history yet.</Typography.Text>
+        )}
+        {runs.slice(0, 8).map((run) => (
+          <div className="run-history-item" key={run.id}>
+            <div className="run-history-title">
+              <strong>{run.agentName || run.agentId}</strong>
+              <Tag color={historyStatusColor(run.status)}>{run.status}</Tag>
+            </div>
+            <div className="run-history-meta">
+              <span>{run.model || '-'}</span>
+              <span>{formatHistoryTime(run.completedAt || run.createdAt)}</span>
+            </div>
+            <p>{run.userMessage}</p>
+            {run.assistantOutput && <code>{run.assistantOutput}</code>}
+          </div>
+        ))}
+      </div>
+    </div>
   );
 }
 
@@ -299,4 +335,28 @@ function runStatusColor(status: RunResult['status']) {
     return 'red';
   }
   return 'default';
+}
+
+function historyStatusColor(status: string) {
+  if (status === 'completed') {
+    return 'green';
+  }
+  if (status === 'running' || status === 'created') {
+    return 'blue';
+  }
+  if (status === 'failed') {
+    return 'red';
+  }
+  return 'default';
+}
+
+function formatHistoryTime(value: string) {
+  if (!value) {
+    return '-';
+  }
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return value;
+  }
+  return date.toLocaleString();
 }
