@@ -59,6 +59,30 @@ select 'model-gpt-5',
 where not exists (select 1 from platform_resource where id = 'model-gpt-5');
 
 insert into platform_resource (id, name, type, version, description, tags, content, schema_text, status)
+select 'model-qwen-image',
+       'Qwen Image',
+       'model',
+       'v1',
+       'Image generation model exposed through the Media Service.',
+       'image,media',
+       '',
+       '{"provider":"tenx-ai-media-service","model":"qwen-image","baseUrl":"http://127.0.0.1:8092","apiKeyRequired":true,"capabilities":["image"]}',
+       'draft'
+where not exists (select 1 from platform_resource where id = 'model-qwen-image');
+
+insert into platform_resource (id, name, type, version, description, tags, content, schema_text, status)
+select 'model-wan22-ti2v-5b',
+       'Wan2.2 TI2V 5B',
+       'model',
+       'v1',
+       'Video generation model exposed through the Media Service.',
+       'video,media',
+       '',
+       '{"provider":"tenx-ai-media-service","model":"Wan2.2-TI2V-5B","baseUrl":"http://127.0.0.1:8092","apiKeyRequired":true,"capabilities":["video"]}',
+       'draft'
+where not exists (select 1 from platform_resource where id = 'model-wan22-ti2v-5b');
+
+insert into platform_resource (id, name, type, version, description, tags, content, schema_text, status)
 select 'prompt-java-architect',
        'Java Architect Prompt',
        'prompt',

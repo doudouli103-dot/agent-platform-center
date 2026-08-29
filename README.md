@@ -23,7 +23,7 @@ Spring Boot API
    |
    | HTTP / OpenAI-compatible chat
    v
-Python Agent Runtime / tenx-ai-gateway
+Python Agent Runtime / tenx-ai-gateway / tenx-ai-media-service
    |
    v
 Model / Skill / MCP / RAG
@@ -31,7 +31,7 @@ Model / Skill / MCP / RAG
 
 The frontend does not call the runtime directly. Spring Boot stays as the unified API boundary for permission, audit, versioning, and published Agent APIs.
 
-`tenx-ai-gateway` is the model gateway. Agent Platform Center can call its OpenAI-compatible chat API so Agent runs use the model selected during Agent creation.
+`tenx-ai-gateway` is the model gateway for chat and streaming model calls. `tenx-ai-media-service` owns image/video asset generation and document-center upload for WebUI-style media clients.
 
 ## Ports
 
@@ -46,6 +46,7 @@ The frontend does not call the runtime directly. Spring Boot stays as the unifie
 | Windows Elasticsearch | 9200 | private LAN only |
 | Windows Chroma | 8000 | private LAN only |
 | Windows RAG API | 8091 | private LAN only |
+| tenx-ai-media-service | 8092 | http://127.0.0.1:8092/healthz |
 
 ## Deployment Topology
 
@@ -55,7 +56,7 @@ For this deployment, MacBook is the external-facing host and the Windows noteboo
 External users
   |
   v
-MacBook: Web / API / Runtime / optional tenx-ai-gateway
+MacBook: Web / API / Runtime / optional tenx-ai-gateway / optional tenx-ai-media-service
   |
   v
 Windows notebook: MySQL / Redis / Elasticsearch / Chroma / RAG API
@@ -68,7 +69,7 @@ External users should not connect to Windows directly. The MacBook API connects 
 Deploy and start services in dependency order:
 
 ```text
-Windows storage services -> MacBook tenx-ai-gateway -> MacBook API -> MacBook Runtime -> MacBook Web
+Windows storage services -> MacBook tenx-ai-gateway -> MacBook tenx-ai-media-service -> MacBook API -> MacBook Runtime -> MacBook Web
 ```
 
 ### 1. Start Windows Storage Services
@@ -104,6 +105,25 @@ curl http://127.0.0.1:8088/healthz
 ```
 
 If the gateway is not started, Agent Platform Center can still run with local mock output for configuration and UI development.
+
+### 2.1. Start tenx-ai-media-service On MacBook
+
+Start the media service when model resources or media clients need image/video generation with document-center upload.
+
+```bash
+cd /Users/lijunwei/PycharmProjects/tenx-ai-media-service
+TENX_AI_MEDIA_API_KEYS=local-dev-key \
+TENX_AI_GATEWAY_BASE_URL=http://127.0.0.1:8088/v1 \
+TENX_AI_GATEWAY_API_KEY=local-dev-key \
+TENX_DOCUMENT_CENTER_BASE_URL=http://127.0.0.1:8081 \
+mvn spring-boot:run
+```
+
+Health check:
+
+```bash
+curl http://127.0.0.1:8092/healthz
+```
 
 ### 3. Start API On MacBook
 
@@ -323,6 +343,15 @@ curl -s http://127.0.0.1:8088/v1/chat/completions \
   -d '{"model":"qwen3-coder-next","messages":[{"role":"user","content":"你好"}],"stream":false}'
 ```
 
+Direct media-service contract for image/video model resources:
+
+```bash
+curl -s http://127.0.0.1:8092/api/v1/images/generations \
+  -H 'Content-Type: application/json' \
+  -H 'Authorization: Bearer local-dev-key' \
+  -d '{"model":"qwen-image","prompt":"生成一张架构图","size":"1024x1024","n":1}'
+```
+
 ## V1 Scope
 
 - Agent, Prompt, Skill, MCP sample configuration
@@ -332,7 +361,8 @@ curl -s http://127.0.0.1:8088/v1/chat/completions \
 - REST API for configuration and run creation
 - SSE for token streaming and trace events
 - REST MCP execution for calling configured external project APIs
-- Optional `tenx-ai-gateway` integration for model calls
+- Optional `tenx-ai-gateway` integration for chat model calls
+- Optional `tenx-ai-media-service` resource metadata for image/video generation
 - React console with Agent list and Playground
 - Python runtime starter for future real Agent execution
 

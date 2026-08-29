@@ -21,6 +21,7 @@ interface ModelSchema {
   provider?: string;
   model?: string;
   baseUrl?: string;
+  mediaBaseUrl?: string;
   apiKeyRequired?: boolean;
   capabilities?: string[];
 }
@@ -44,14 +45,14 @@ const capabilityCatalog: Record<string, ModelApiCapability> = {
     key: 'image',
     label: 'Image Generation',
     method: 'POST',
-    path: '/v1/images/generations',
+    path: '/api/v1/images/generations',
     streaming: false,
   },
   video: {
     key: 'video',
     label: 'Video Generation',
     method: 'POST',
-    path: '/v1/videos/generations',
+    path: '/api/v1/videos/generations',
     streaming: false,
   },
 };
@@ -60,15 +61,20 @@ export function toModelApiProfile(resource: PlatformResource): ModelApiProfile {
   const schema = parseSchema(resource.schemaText);
   const model = schema.model || normalizeModelResourceId(resource.id);
   const capabilities = resolveCapabilities(schema.capabilities);
-  const baseUrl = schema.baseUrl || 'http://127.0.0.1:8088';
+  const primaryCapability = capabilities[0] || capabilityCatalog.chat;
+  const usesMediaService = capabilities.some((capability) => capability.key === 'image' || capability.key === 'video')
+    && !capabilities.some((capability) => capability.key === 'chat' || capability.key === 'stream');
+  const baseUrl = usesMediaService
+    ? schema.mediaBaseUrl || schema.baseUrl || 'http://127.0.0.1:8092'
+    : schema.baseUrl || 'http://127.0.0.1:8088';
 
   return {
-    provider: schema.provider || 'tenx-ai-gateway',
+    provider: schema.provider || (usesMediaService ? 'tenx-ai-media-service' : 'tenx-ai-gateway'),
     model,
     baseUrl,
     apiKeyRequired: schema.apiKeyRequired !== false,
     capabilities,
-    requestExample: buildRequestExample(model, capabilities[0] || capabilityCatalog.chat),
+    requestExample: buildRequestExample(model, primaryCapability),
   };
 }
 

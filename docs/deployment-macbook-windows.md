@@ -12,6 +12,7 @@ MacBook deployment host
   |- agent-platform-center-api
   |- agent-platform-runtime
   |- tenx-ai-gateway optional
+  |- tenx-ai-media-service optional
   |
   | private LAN direct connections
   v
@@ -34,6 +35,7 @@ The MacBook is the host exposed to external users. The Windows notebook is the i
 | Elasticsearch | 9200 | Full-text document search and hybrid retrieval |
 | Chroma | 8000 | Vector database |
 | RAG API | 8091 | Retrieval and answer grounding service |
+| Media Service | 8092 | Image/video asset generation and document-center upload |
 
 External users should not connect to the Windows notebook directly. Allow these ports only from the MacBook LAN IP in Windows firewall.
 
@@ -72,7 +74,7 @@ export AGENT_CENTER_RAG_API_URL=http://${WINDOWS_STORAGE_HOST}:8091
 ## Startup Order
 
 ```text
-Windows storage services -> MacBook tenx-ai-gateway -> MacBook API -> MacBook Runtime -> MacBook Web
+Windows storage services -> MacBook tenx-ai-gateway -> MacBook tenx-ai-media-service -> MacBook API -> MacBook Runtime -> MacBook Web
 ```
 
 Use H2 only for local development. Use the `mysql` profile when the MacBook deployment connects directly to Windows storage.

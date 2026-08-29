@@ -65,7 +65,7 @@ export default function ModelsPage() {
       ),
     },
     {
-      title: 'Gateway',
+      title: 'Provider URL',
       key: 'gateway',
       width: 240,
       render: (_, record) => <code>{toModelApiProfile(record).baseUrl}</code>,
@@ -94,7 +94,7 @@ export default function ModelsPage() {
       <div className="page-title-row">
         <div>
           <Typography.Title level={2}>Models</Typography.Title>
-          <Typography.Text type="secondary">View current model API capability exposed through tenx-ai-gateway.</Typography.Text>
+          <Typography.Text type="secondary">View chat capabilities through tenx-ai-gateway and media capabilities through tenx-ai-media-service.</Typography.Text>
         </div>
         <Button type="primary" icon={<PlusOutlined />} onClick={() => setOpen(true)}>
           New Model
@@ -125,7 +125,7 @@ export default function ModelsPage() {
                 <code>{selectedProfile.model}</code>
               </div>
               <div>
-                <Typography.Text type="secondary">Gateway</Typography.Text>
+                <Typography.Text type="secondary">Provider</Typography.Text>
                 <strong>{selectedProfile.provider}</strong>
                 <code>{selectedProfile.baseUrl}</code>
               </div>

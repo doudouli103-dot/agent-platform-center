@@ -10,6 +10,7 @@ Agent Platform Center uses a separated frontend/backend architecture:
 - Communication: REST for commands and CRUD, SSE for stream output and trace events
 - Persistence: Flyway-managed relational schema, H2 for local startup, MySQL for MacBook-to-Windows deployment, PostgreSQL retained as an alternative
 - Deployment: MacBook is the external-facing host; Windows notebook is the internal storage and data service server
+- AI services: tenx-ai-gateway handles chat model routing; tenx-ai-media-service handles image/video assets and document-center upload
 
 ## Runtime Boundary
 
@@ -32,7 +33,7 @@ The default profile uses a local H2 file database so the project starts without 
 External users access only the MacBook host. The Windows notebook stays inside the private LAN and provides MySQL, Redis, Elasticsearch, Chroma, and RAG API to the MacBook.
 
 ```text
-External users -> MacBook Web/API/Runtime/Gateway -> Windows MySQL/Redis/Elasticsearch/Chroma/RAG API
+External users -> MacBook Web/API/Runtime/Gateway/Media Service -> Windows MySQL/Redis/Elasticsearch/Chroma/RAG API
 ```
 
 ## V1 Run Flow
