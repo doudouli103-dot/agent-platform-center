@@ -37,10 +37,10 @@ The frontend does not call the runtime directly. Spring Boot stays as the unifie
 
 | Module | Port | Health |
 | --- | --- | --- |
-| Web | 5173 | http://localhost:5173 |
-| API | 8080 | http://localhost:8080/api/health |
-| Runtime | 8090 | http://localhost:8090/health |
-| tenx-ai-gateway | 8088 | http://127.0.0.1:8088/healthz |
+| Web | 5176 | http://windows.tentest.cn:5176 |
+| API | 8080 | http://windows.tentest.cn:8080/api/health |
+| Runtime | 8090 | http://windows.tentest.cn:8090/health |
+| tenx-ai-gateway | 8088 | http://macstudio.tentest.cn:8088/healthz |
 | Windows MySQL | 3306 | private LAN only |
 | Windows Redis | 6379 | private LAN only |
 | Windows Elasticsearch | 9200 | private LAN only |
@@ -50,26 +50,26 @@ The frontend does not call the runtime directly. Spring Boot stays as the unifie
 
 ## Deployment Topology
 
-For this deployment, MacBook is the external-facing host and the Windows notebook is the internal storage server.
+For this deployment, Mac Studio is the model capability host and Windows is the application/data host.
 
 ```text
 External users
   |
   v
-MacBook: Web / API / Runtime / optional tenx-ai-gateway / optional tenx-ai-media-service
+Windows: Web / API / Runtime / storage services
   |
   v
-Windows notebook: MySQL / Redis / Elasticsearch / Chroma / RAG API
+Mac Studio: tenx-ai-gateway / model runtimes
 ```
 
-External users should not connect to Windows directly. The MacBook API connects directly to Windows MySQL, and future Runtime/RAG features connect directly to Windows Redis, Elasticsearch, Chroma, and RAG API.
+MacBook is a client/development machine. Browser traffic can open Windows web consoles, while model calls go through the Mac Studio Gateway.
 
 ## Start
 
 Deploy and start services in dependency order:
 
 ```text
-Windows storage services -> MacBook tenx-ai-gateway -> MacBook tenx-ai-media-service -> MacBook API -> MacBook Runtime -> MacBook Web
+Mac Studio tenx-ai-gateway -> Windows storage services -> Windows API -> Windows Runtime -> Windows Web
 ```
 
 ### 1. Start Windows Storage Services
@@ -85,9 +85,9 @@ grant all privileges on agent_platform_center.* to 'agent_center'@'%';
 flush privileges;
 ```
 
-Allow service ports only from the MacBook LAN IP in Windows firewall.
+Allow service ports only from trusted LAN clients in Windows firewall.
 
-### 2. Start tenx-ai-gateway On MacBook
+### 2. Start tenx-ai-gateway On Mac Studio
 
 Start the model gateway first when Agent runs should use real model capability.
 
@@ -106,26 +106,26 @@ curl http://127.0.0.1:8088/healthz
 
 If the gateway is not started, Agent Platform Center can still run with local mock output for configuration and UI development.
 
-### 2.1. Start tenx-ai-media-service On MacBook
+### 2.1. Start tenx-ai-media-service On Windows
 
 Start the media service when model resources or media clients need image/video generation with document-center upload.
 
 ```bash
 cd /Users/lijunwei/PycharmProjects/tenx-ai-media-service
 TENX_AI_MEDIA_API_KEYS=local-dev-key \
-TENX_AI_GATEWAY_BASE_URL=http://127.0.0.1:8088/v1 \
+TENX_AI_GATEWAY_BASE_URL=http://macstudio.tentest.cn:8088/v1 \
 TENX_AI_GATEWAY_API_KEY=local-dev-key \
-TENX_DOCUMENT_CENTER_BASE_URL=http://127.0.0.1:8081 \
+TENX_DOCUMENT_CENTER_BASE_URL=http://windows.tentest.cn:8081 \
 mvn spring-boot:run
 ```
 
 Health check:
 
 ```bash
-curl http://127.0.0.1:8092/healthz
+curl http://windows.tentest.cn:8092/healthz
 ```
 
-### 3. Start API On MacBook
+### 3. Start API On Windows
 
 ```bash
 cd agent-platform-center-api
@@ -140,11 +140,11 @@ docker compose up -d
 SPRING_PROFILES_ACTIVE=postgres mvn spring-boot:run
 ```
 
-For the MacBook deployment that connects directly to the Windows storage server, use the `mysql` profile:
+For the Windows deployment that connects to the Windows storage server, use the `mysql` profile:
 
 ```bash
 cd agent-platform-center-api
-export WINDOWS_STORAGE_HOST=192.168.1.100
+export WINDOWS_STORAGE_HOST=windows.tentest.cn
 export AGENT_CENTER_DB_USERNAME=agent_center
 export AGENT_CENTER_DB_PASSWORD=change-me
 SPRING_PROFILES_ACTIVE=mysql mvn spring-boot:run
@@ -164,14 +164,14 @@ To use real model capability through `tenx-ai-gateway`, start the gateway first,
 ```bash
 cd agent-platform-center-api
 AGENT_CENTER_GATEWAY_ENABLED=true \
-AGENT_CENTER_GATEWAY_BASE_URL=http://127.0.0.1:8088 \
+AGENT_CENTER_GATEWAY_BASE_URL=http://macstudio.tentest.cn:8088 \
 AGENT_CENTER_GATEWAY_API_KEY=local-dev-key \
 mvn spring-boot:run
 ```
 
 When gateway integration is disabled, the Playground still returns local mock output so configuration screens and SSE can be developed without a running model service.
 
-### 4. Start Runtime On MacBook
+### 4. Start Runtime On Windows
 
 ```bash
 cd agent-platform-runtime
@@ -183,7 +183,7 @@ uvicorn app.main:app --reload --port 8090
 
 The runtime is the extension point for future real Skill, MCP, Tool, and RAG execution. The current API does not require it for basic Agent configuration and Chat UI smoke testing.
 
-### 5. Start Web On MacBook
+### 5. Start Web On Windows
 
 ```bash
 cd agent-platform-center-web
@@ -191,31 +191,31 @@ pnpm install
 pnpm dev
 ```
 
-Open http://localhost:5173.
+Open http://windows.tentest.cn:5176.
 
 ## API Examples
 
 ```bash
-curl http://localhost:8080/api/health
-curl http://localhost:8080/api/agents
-curl http://localhost:8080/api/models
-curl http://localhost:8080/api/prompts
-curl http://localhost:8080/api/skills
-curl http://localhost:8080/api/mcp-servers
-curl http://localhost:8080/api/tools
-curl -X POST http://localhost:8080/api/tools \
+curl http://windows.tentest.cn:8080/api/health
+curl http://windows.tentest.cn:8080/api/agents
+curl http://windows.tentest.cn:8080/api/models
+curl http://windows.tentest.cn:8080/api/prompts
+curl http://windows.tentest.cn:8080/api/skills
+curl http://windows.tentest.cn:8080/api/mcp-servers
+curl http://windows.tentest.cn:8080/api/tools
+curl -X POST http://windows.tentest.cn:8080/api/tools \
   -H 'Content-Type: application/json' \
   -d '{"name":"HTTP Request","version":"v1","description":"Call approved HTTP endpoints","tags":["http","integration"]}'
-curl -X POST http://localhost:8080/api/models \
+curl -X POST http://windows.tentest.cn:8080/api/models \
   -H 'Content-Type: application/json' \
   -d '{"name":"Local Qwen","version":"v1","description":"Local OpenAI-compatible Qwen model","tags":["local","coder"],"schemaText":"{\"provider\":\"openai-compatible\",\"baseUrl\":\"http://localhost:4000/v1\"}"}'
-curl -X POST http://localhost:8080/api/agents \
+curl -X POST http://windows.tentest.cn:8080/api/agents \
   -H 'Content-Type: application/json' \
   -d '{"name":"Code Reviewer","description":"Review Java code","model":"model-qwen3-coder-next@v1","promptVersion":"prompt-java-architect@v1","skills":["skill-java-review@v1"],"mcpServers":["mcp-filesystem@v1"],"tools":["tool-shell@v1"]}'
-curl -X POST http://localhost:8080/api/runs \
+curl -X POST http://windows.tentest.cn:8080/api/runs \
   -H 'Content-Type: application/json' \
   -d '{"agentId":"agent-java-architect","message":"分析一个 Spring Boot 项目"}'
-curl -N http://localhost:8080/api/runs/run-demo/events
+curl -N http://windows.tentest.cn:8080/api/runs/run-demo/events
 ```
 
 ### MCP for external project APIs
@@ -257,7 +257,7 @@ MCP fields:
 Supported runtime fields:
 
 - `type`: Must be `rest-api` to enable real HTTP execution.
-- `baseUrl`: External project API host. For the MacBook-to-Windows topology, this can point to a Windows LAN address such as `http://192.168.1.20:18080`.
+- `baseUrl`: External project API host. For this LAN topology, this can point to a Windows LAN address such as `http://windows.tentest.cn:18080`.
 - `auth.type`: `bearer`, `api-key`, or omit it for no auth.
 - `auth.env`: Environment variable name read by the API process. Do not put real tokens in `schemaText`.
 - `endpoints[0].name`: Name returned in the `mcp.result` event.
@@ -268,7 +268,7 @@ Supported runtime fields:
 Create an MCP resource:
 
 ```bash
-curl -X POST http://localhost:8080/api/mcp-servers \
+curl -X POST http://windows.tentest.cn:8080/api/mcp-servers \
   -H 'Content-Type: application/json' \
   -d '{
     "name": "Order API MCP",
@@ -316,12 +316,12 @@ Bind the generated MCP id with its version when creating an Agent. If the MCP cr
 Run the Agent and read MCP events:
 
 ```bash
-RUN_JSON=$(curl -s -X POST http://localhost:8080/api/runs \
+RUN_JSON=$(curl -s -X POST http://windows.tentest.cn:8080/api/runs \
   -H 'Content-Type: application/json' \
   -d '{"agentId":"agent-java-architect","message":"查询订单 1001"}')
 
 EVENTS_URL=$(printf '%s' "$RUN_JSON" | sed -n 's/.*"eventsUrl":"\([^"]*\)".*/\1/p')
-curl -N "http://localhost:8080$EVENTS_URL"
+curl -N "http://windows.tentest.cn:8080$EVENTS_URL"
 ```
 
 Runtime behavior:

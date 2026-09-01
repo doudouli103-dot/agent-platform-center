@@ -12,8 +12,8 @@ spring:
 
 agent-platform:
   runtime:
-    base-url: ${AGENT_CENTER_RUNTIME_URL:http://localhost:8090}
+    base-url: ${AGENT_CENTER_RUNTIME_URL:http://windows.tentest.cn:8090}
   gateway:
     enabled: ${AGENT_CENTER_GATEWAY_ENABLED:false}
-    base-url: ${AGENT_CENTER_GATEWAY_BASE_URL:http://127.0.0.1:8088}
+    base-url: ${AGENT_CENTER_GATEWAY_BASE_URL:http://macstudio.tentest.cn:8088}
     api-key: ${AGENT_CENTER_GATEWAY_API_KEY:local-dev-key}
